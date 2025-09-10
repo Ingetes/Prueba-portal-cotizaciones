@@ -1,0 +1,890 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Generador  .xls/.xlsx — INGETES</title>
+<style>
+  /* Paleta clara tipo “dashboard” */
+  :root{
+    --bg:#f6f8fb;          /* fondo general */
+    --card:#ffffff;        /* tarjetas / contenedores */
+    --border:#e5e7eb;      /* líneas y bordes suaves */
+    --muted:#6b7280;       /* texto secundario */
+    --text:#0b1020;        /* texto principal */
+    --input-bg:#ffffff;    /* fondo de inputs */
+    --input-border:#d1d5db;/* borde de inputs */
+    --input-placeholder:#9ca3af;
+    --btn:#111827;         /* botón oscuro (Industry Mall) */
+    --btn-border:#0b0f19;
+    --btn-text:#ffffff;
+    --pill-bg:#eef2f7;     /* chips/pastillas de estado */
+    --pill-text:#111827;
+    --table-head:#f1f5f9;  /* encabezado de tablas */
+  }
+
+  *{box-sizing:border-box}
+  body{
+    margin:0;
+    font-family:Inter,system-ui,Segoe UI,Roboto,Ubuntu,Arial,sans-serif;
+    background:var(--bg);
+    color:var(--text);
+  }
+
+  /* Encabezado claro con borde sutil */
+  header{
+    padding:24px 16px;
+    border-bottom:1px solid var(--border);
+    background:#ffffff;
+  }
+
+  label.required::after {
+    content: " *";
+    color: #dc2626;
+  }
+
+  h1{margin:0;font-size:24px;font-weight:800;color:var(--text)}
+
+  main{max-width:1100px;margin:0 auto;padding:24px 16px}
+
+  .grid{display:grid;gap:16px}
+  .two{grid-template-columns:repeat(2,minmax(0,1fr))}
+  @media (max-width:900px){.two{grid-template-columns:1fr}}
+
+  .card{
+    background:var(--card);
+    border:1px solid var(--border);
+    border-radius:16px;
+  }
+  .pad{padding:16px}
+
+  label{
+    display:block;
+    font-size:13px;
+    color:var(--muted);
+    margin-bottom:6px;
+  }
+
+  input,select,textarea{
+    width:100%;
+    padding:10px 12px;
+    background:var(--input-bg);
+    color:var(--text);
+    border:1px solid var(--input-border);
+    border-radius:10px;
+    outline:none;
+  }
+  input::placeholder, textarea::placeholder{color:var(--input-placeholder)}
+  input[type=file]{padding:10px;background:var(--card)}
+
+  /* Estados de foco accesibles */
+  input:focus, select:focus, textarea:focus{
+    border-color:#9aa7b4;
+    box-shadow:0 0 0 3px rgba(2,132,199,.15);
+  }
+
+  .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+
+  /* Botones: primario negro como en la imagen */
+  .btn{
+    display:inline-flex;align-items:center;gap:8px;
+    padding:10px 14px;border-radius:12px;
+    border:1px solid var(--border);
+    background:#f3f4f6;color:var(--text);
+    cursor:pointer;font-weight:600;
+  }
+  .btn.primary{
+    background:var(--btn);
+    color:var(--btn-text);
+    border-color:var(--btn-border);
+  }
+  .btn.primary:hover{filter:brightness(1.05)}
+  .btn:hover{background:#eef1f5}
+
+  /* Chips/píldoras de estado en claro */
+  .pill{
+    display:inline-block;padding:4px 10px;border-radius:999px;
+    background:var(--pill-bg);border:1px solid var(--border);
+    font-size:12px;color:var(--pill-text);
+  }
+
+  /* Tablas en claro */
+  .table-preview{width:100%;border-collapse:collapse;background:#fff}
+  .table-preview th,.table-preview td{
+    border:1px solid var(--border);
+    padding:6px 8px;font-size:12px;color:var(--text);
+  }
+  .table-preview th{
+    background:var(--table-head);
+    color:#111827;
+    font-weight:700;
+  }
+
+  /* Select con mismo estilo que input */
+  .select{
+    width:100%;
+    padding:10px 12px;
+    background:var(--input-bg);
+    color:var(--text);
+    border:1px solid var(--input-border);
+    border-radius:10px;
+  }
+</style>
+
+</head>
+<body>
+  <header>
+    <h1>Generador de cotizaciones en excel</h1>
+      <div>INGETES SAS</div>
+  </header>
+
+  <main class="grid">
+    <section class="card pad">
+      <h3>1) Archivo de entrada</h3>
+      <div class="grid two">
+        <div>
+          <label class="required">Archivo .xls / .xlsx</label>
+          <input id="file" type="file" accept=".xls,.xlsx" />
+          <div id="fileInfo" style="margin-top:6px;color:#9aa3b2"></div>
+        </div>
+        <div>
+          <label class="row" style="justify-content:space-between">Estado <span id="status" class="pill">Inicializando…</span></label>
+          <div id="engineInfo" style="margin-top:8px;color:#9aa3b2"></div>
+        </div>
+      </div>
+
+      <div id="previewWrap" style="display:none;margin-top:14px">
+        <label>Vista previa</label>
+        <div style="max-height:240px;overflow:auto;border:1px solid #253056;border-radius:12px">
+          <table id="preview" class="table-preview"></table>
+        </div>
+      </div>
+    </section>
+
+    <section class="card pad">
+      <h3>2) Parámetros y nombre del archivo</h3>
+      <div class="grid two">
+        <div>
+          <div class="row">
+            <div style="min-width:170px">
+              <label class="required">Factor de utilidad (global)</label>
+              <input id="factor" type="number" step="0.01" min="1.2" value="1.25">
+            </div>
+            <div style="min-width:170px">
+              <label>Envío por ítem (COP)</label>
+              <input id="envio" type="number" step="1" value="">
+            </div>
+            <div style="min-width:170px">
+              <label>Descuento total oferta (%)</label>
+              <input id="descuento" type="number" step="0.01" min="0" value="">
+            </div>
+            <div style="min-width:200px">
+              <label class="required">Botón (aplica a todos los ítems)</label>
+              <select id="botonGlobal" class="select">
+                <option value="SPO-OEM">SPO-OEM</option>
+                <option value="NORMAL" selected>NORMAL</option>
+                <option value="SPO-SOP">SPO-SOP</option>
+                <option value="SQ">SQ</option>
+                <option value="SPO-TAB">SPO-TAB</option>
+                <option value="SPO-MIG">SPO-MIG</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="row">
+            <div style="min-width:200px">
+              <label>Mostrar referencia en descripción</label>
+              <select id="mostrarRef" class="select">
+                <option value="NO" selected>NO</option>
+                <option value="SI">SI</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="row">
+            <div style="min-width:260px">
+              <label class="required">Cliente</label>
+              <input id="cliente" placeholder="Nombre del cliente" style="text-transform:uppercase" value="">
+            </div>
+            <div style="min-width:180px">
+              <label class="required">Fecha de elaboración</label>
+              <input id="fechaElab" type="date" value="">
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <div class="row">
+            <div style="min-width:170px">
+              <label class="required">Número de cotización</label>
+              <input id="numCot" type="number" placeholder="####" value="">
+            </div>
+            <div style="min-width:170px">
+              <label class="required">Iniciales comercial</label>
+              <input id="iniCom" maxlength="3" placeholder="AAA" style="text-transform:uppercase" value="">
+            </div>
+            <div style="min-width:120px">
+              <label class="required">Año (YY)</label>
+              <input id="anio" type="number" placeholder="##" value="" min="0" max="99" oninput="limitYearDigits(this)">
+            </div>
+            <div style="min-width:150px">
+              <label>Versión (A,B,…) opcional</label>
+              <input id="sufijo" maxlength="1" placeholder="A" style="text-transform:uppercase" value="">
+            </div>
+          </div>
+          <div class="row">
+            <div style="min-width:340px">
+              <label>Nombre de salida</label>
+              <input id="outName" readonly>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card pad">
+      <h3>3) Generar Excel</h3>
+      <div class="row">
+        <button id="btnGen" class="btn primary">Generar y descargar</button>
+        <button id="reset" class="btn">Reiniciar formulario</button>
+        <span id="log" style="color:#9aa3b2"></span>
+      </div>
+    </section>
+  </main>
+
+  <script>
+  // ===== Utilidades / carga =====
+  const $ = (s)=>document.querySelector(s);
+  const statusEl = () => $('#status');
+  function setStatus(t){ if(statusEl()) statusEl().textContent=t; }
+  function setEngineInfo(html, cls){ const el=$('#engineInfo'); if(el) el.innerHTML = `<span class="${cls||''}">${html}</span>`; }
+  async function loadScript(src){ return new Promise((res,rej)=>{ const s=document.createElement('script'); s.src=src; s.defer=true; s.crossOrigin='anonymous'; s.onload=()=>res(); s.onerror=()=>rej(new Error('No se pudo cargar '+src)); document.head.appendChild(s); }); }
+  async function ensureXLSX(){ if(window.XLSX) return; for(const u of ['https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js','https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js']){ try{ await loadScript(u); break; }catch{} } if(!window.XLSX) throw new Error('SheetJS no se pudo cargar'); }
+  async function ensureExcelJS(){ if(window.ExcelJS) return; for(const u of ['https://cdn.jsdelivr.net/npm/exceljs@4.3.0/dist/exceljs.min.js','https://unpkg.com/exceljs@4.3.0/dist/exceljs.min.js']){ try{ await loadScript(u); break; }catch{} } }
+
+  let parsedRows=[], headers=[];
+  (async function init(){ try{ setStatus('Cargando librerías…'); await ensureXLSX(); await ensureExcelJS(); setStatus('Listo. Carga tu archivo.'); }catch(e){ setStatus('Error al iniciar'); setEngineInfo(e.message,'error'); } bindEvents(); updateOutName(); })();
+
+  function limitYearDigits(input) {
+    if (input.value.length > 2) {
+      input.value = input.value.slice(0, 2);
+    }
+    
+    // También actualiza el nombre de salida
+    updateOutName();
+  }
+  
+  function bindEvents(){
+    $('#file').addEventListener('change', async (ev)=>{
+      const f=ev.target.files?.[0]; if(!f) return;
+      $('#fileInfo').textContent=`${f.name} • ${(f.size/1024/1024).toFixed(2)} MB`;
+      const data=await f.arrayBuffer();
+      const wb=XLSX.read(data,{type:'array'}); const ws=wb.Sheets[wb.SheetNames[0]];
+      const json=XLSX.utils.sheet_to_json(ws,{defval:'',raw:true});
+      parsedRows=json; headers=Object.keys(json[0]||{}).map(String);
+      buildPreview(json);
+    });
+
+    // Agrega esto con los otros event listeners en bindEvents()
+    $('#anio').addEventListener('input', function() {
+      if (this.value.length > 2) {
+        this.value = this.value.slice(0, 2);
+      }
+      updateOutName();
+    });
+    
+    $('#btnGen').addEventListener('click', generateExcel);
+
+    $('#reset').addEventListener('click', resetForm);
+
+    // Forzar mayúsculas en campos de texto que lo requieren
+    ['cliente','iniCom','sufijo'].forEach(id=>{
+      const el=$('#'+id);
+      el.addEventListener('input', ()=>{ el.value = (el.value||'').toUpperCase(); updateOutName(); });
+    });
+    // Actualizar nombre al escribir
+    ['numCot','anio','iniCom','sufijo'].forEach(id=>$('#'+id).addEventListener('input', updateOutName));
+
+    const requiredIds = ['factor', 'botonGlobal', 'cliente', 'fechaElab', 'numCot', 'iniCom', 'anio'];
+    requiredIds.forEach(id => {
+      const element = $('#' + id);
+      if (element) {
+        element.addEventListener('input', function() {
+          if (this.value.trim()) {
+            this.style.borderColor = '';
+            this.style.boxShadow = '';
+          }
+        });
+      }
+    });
+
+  }
+
+  function resetForm() {
+    // Reiniciar campos de archivo
+    $('#file').value = '';
+    $('#fileInfo').textContent = '';
+    $('#previewWrap').style.display = 'none';
+    parsedRows = [];
+    headers = [];
+    
+    // Reiniciar campos de entrada
+    $('#factor').value = '1.25';
+    $('#envio').value = '';
+    $('#descuento').value = '';
+    $('#botonGlobal').value = 'NORMAL';
+    $('#mostrarRef').value = 'NO';
+    $('#cliente').value = '';
+    $('#fechaElab').value = '';
+    $('#numCot').value = '';
+    $('#iniCom').value = '';
+    $('#anio').value = '';
+    $('#sufijo').value = '';
+    
+    // Actualizar nombre de salida
+    updateOutName();
+    
+    // Restablecer estado
+    setStatus('Listo. Carga tu archivo.');
+    setEngineInfo('', '');
+    
+    const successMessage = 'Formulario reiniciado. Puedes comenzar una nueva cotización.';
+    
+    // Si estamos en un iframe, enviar el mensaje al padre
+    if (window.parent !== window.self) {
+      window.parent.postMessage({
+        __ingetes_alert: true,
+        message: successMessage
+      }, '*');
+    } else {
+      alert(successMessage);
+    }
+  }
+
+  function buildPreview(rows){
+    const table=$('#preview'); if(!table) return; table.innerHTML='';
+    if(!rows.length){ $('#previewWrap').style.display='none'; return; }
+    const thead=document.createElement('thead'); const trh=document.createElement('tr');
+    headers.forEach(h=>{const th=document.createElement('th'); th.textContent=h; trh.appendChild(th);});
+    thead.appendChild(trh); table.appendChild(thead);
+    const tbody=document.createElement('tbody');
+    rows.slice(0,10).forEach(r=>{const tr=document.createElement('tr'); headers.forEach(h=>{const td=document.createElement('td'); td.textContent=r[h]; tr.appendChild(td);}); tbody.appendChild(tr);});
+    table.appendChild(tbody); $('#previewWrap').style.display='block';
+  }
+
+  // ===== Mapeo / helpers =====
+  const stripAccents=s=>s.normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+  const norm=s=>stripAccents(String(s||'').toLowerCase().trim());
+  function autoMap(){
+    const cols=headers.map(h=>({raw:h, n:norm(h)}));
+    const find=(arr)=>{const hit=cols.find(c=>arr.some(p=>c.n.includes(p))); return hit?hit.raw:null};
+    return {
+      referencia: find(['id de material','id material','material','referencia']),
+      cantidad:   find(['cantidad','qty','quantity']),
+      descripcion:find(['descripcion','descripción','description']),
+      precio:     find(['precio unidad (peso colombiano)','precio unidad','precio lista','unidad (peso colombiano)']),
+      descuento:  find(['descuento (%)','descuento','discount']),
+      fecha:      find(['fecha de entrega estimada','entrega estimada','estimated delivery','delivery'])
+    };
+  }
+  const toNum=v=>{ if(typeof v==='number')return v; const s=String(v).replace(/[^0-9,.-]/g,'').replace(/,(?=\d{3}(\D|$))/g,'').replace(',', '.'); const n=parseFloat(s); return isFinite(n)?n:0; };
+  function toDate(v){
+    if(!v) return null;
+    if(typeof v==='number'){ const epoch=new Date(1899,11,30); const d=new Date(epoch.getTime()+v*86400000); return new Date(d.getFullYear(), d.getMonth(), d.getDate()); }
+    if(v instanceof Date && !isNaN(v)) return new Date(v.getFullYear(), v.getMonth(), v.getDate());
+    const s=String(v).trim(); if(!s) return null;
+    function digits(str){ let buf='', out=[]; for(const ch of str){ if(ch>='0'&&ch<='9') buf+=ch; else { if(buf){ out.push(buf); buf=''; } } } if(buf) out.push(buf); return out; }
+    const p=digits(s);
+    if(p.length>=3){
+      let y,m,d;
+      if(p[0].length===4){ y=+p[0]; m=+p[1]-1; d=+p[2]; }
+      else { d=+p[0]; m=+p[1]-1; y=+p[2]; if(y<100) y+=2000; }
+      const dt=new Date(y,m,d); if(dt && dt.getMonth()===m && dt.getDate()===d) return dt;
+    }
+    const d2=new Date(s); if(!isNaN(d2)) return new Date(d2.getFullYear(), d2.getMonth(), d2.getDate());
+    return null;
+  }
+  function disponibilidad(val){
+    const d=toDate(val); if(!d) return '';
+    const t=new Date(); t.setHours(0,0,0,0);
+    const diff=Math.floor((d - t)/86400000);
+    if(diff <= 6) return '3-5 días. Salvo venta previa';
+    if(diff >= 8 && diff <= 45) return '30-45 días. Salvo venta previa';
+    if(diff >= 46 && diff <= 60) return '6-8 semanas';
+    if(diff >= 61 && diff <= 80) return '8-10 semanas';
+    if(diff >= 81 && diff <= 100) return '10-12 semanas';
+    return `${diff} días`;
+  }
+
+  // ===== Nombre de salida =====
+  function updateOutName(){
+    const n=String($('#numCot').value||'').padStart(4,'0') || '0000';
+    const i=String($('#iniCom').value||'').toUpperCase();
+    const yIn=$('#anio').value;
+    const y=(yIn?String(yIn):String(new
+Date().getFullYear()).slice(-2)).slice(-2).toUpperCase();
+    const s=String($('#sufijo').value||'').toUpperCase();
+    $('#iniCom').value=i; $('#sufijo').value=s;
+    $('#outName').value=(`Q${n}-${i}-${y}${s}`).toUpperCase();
+    $('#outName').value = (`Q${n}-${i || 'AAA'}-${y}${s}`).toUpperCase();
+
+  }
+
+/* ========= Descarga con File System Access API ========= */
+async function downloadExcelWithFilePicker(blob, fileName) {
+  try {
+    // Verificar si el navegador soporta la API de File System Access
+    if ('showSaveFilePicker' in window) {
+      try {
+        // Mostrar el diálogo para guardar archivo
+        const handle = await window.showSaveFilePicker({
+          suggestedName: fileName,
+          types: [{
+            description: 'Archivo Excel',
+            accept: {
+              'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx']
+            }
+          }]
+        });
+        
+        // Crear un stream para escribir el archivo
+        const writable = await handle.createWritable();
+        await writable.write(blob);
+        await writable.close();
+        
+        console.log('Archivo guardado exitosamente');
+        return true;
+      } catch (err) {
+        if (err.name !== 'AbortError') {
+          console.error('Error al guardar el archivo:', err);
+        }
+        return false;
+      }
+    }
+    return false;
+  } catch (error) {
+    console.error('Error en File System API:', error);
+    return false;
+  }
+}
+
+// Método de respaldo para navegadores que no soportan la API
+function downloadExcelWithFallback(blob, fileName) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = fileName;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+}
+
+function postDownloadToParent(blob, fileName, mime){
+  try{
+    if (window.parent && window.parent !== window) {
+      if (blob && typeof blob.arrayBuffer === 'function') {
+        blob.arrayBuffer().then(buf=>{
+          window.parent.postMessage({
+            __ingetes_download: true,
+            fileName,
+            mime: mime || 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            buffer: buf
+          }, '*');
+        });
+        return true;
+      }
+    }
+  }catch(_){}
+  return false;
+}
+
+  // ===== Generación =====
+  async function generateExcel(){
+  // Validar campos obligatorios
+  const requiredFields = [
+    'file', 'factor', 'botonGlobal', 'cliente', 'fechaElab', 
+    'numCot', 'iniCom', 'anio'
+  ];
+  
+  const missingFields = [];
+  
+  requiredFields.forEach(fieldId => {
+    let value;
+    if (fieldId === 'file') {
+      value = parsedRows.length;
+    } else {
+      const element = $('#' + fieldId);
+      value = element ? element.value : '';
+    }
+    
+    if (!value) {
+      missingFields.push(fieldId);
+      // Resaltar campo vacío
+      const element = $('#' + fieldId);
+      if (element) {
+        element.style.borderColor = '#dc2626';
+        element.style.boxShadow = '0 0 0 2px rgba(220, 38, 38, 0.2)';
+      }
+    }
+  });
+  
+  if (missingFields.length > 0) {
+    const fieldNames = {
+    'file': 'Archivo .xls/.xlsx',
+    'factor': 'Factor de utilidad',
+    'botonGlobal': 'Botón',
+    'cliente': 'Cliente',
+    'fechaElab': 'Fecha de elaboración',
+    'numCot': 'Número de cotización',
+    'iniCom': 'Iniciales comercial',
+    'anio': 'Año'
+  };
+
+  const errorMessage = 'Por favor complete los siguientes campos obligatorios:\n' + 
+    missingFields.map(id => {
+      return fieldNames[id] || id;
+    }).join('\n');
+    
+    // Si estamos en un iframe, enviar el mensaje al padre
+    if (window.parent !== window.self) {
+      window.parent.postMessage({
+        __ingetes_alert: true,
+        message: errorMessage
+      }, '*');
+    } else {
+      alert(errorMessage);
+    }
+    
+    return;
+  }
+    if(!parsedRows.length){ alert('Primero carga un archivo .xls/.xlsx'); return; }
+    const m=autoMap();
+    const miss=['referencia','cantidad','descripcion','precio','descuento','fecha'].filter(k=>!m[k]);
+    if(miss.length){ alert('No se encontraron columnas requeridas: '+miss.join(', ')); return; }
+
+    const factor=parseFloat($('#factor').value||'0');
+    if(!(factor >= 1.2)){ alert('El factor de utilidad debe ser mayor o igual a 1,20'); $('#factor').focus(); return; }
+
+    const envio=parseFloat($('#envio').value||'0');
+    const descuentoPct=Math.max(0, toNum($('#descuento').value||'0'))/100;
+    const botonGlobal=$('#botonGlobal')?.value||'NORMAL';
+    const showRef = ($('#mostrarRef').value||'NO') === 'SI';
+
+    // En la función generateExcel(), dentro del mapeo de items:
+    const items=parsedRows.map((r,idx)=>{
+      const cant=toNum(r[m.cantidad])||1; 
+      const p=toNum(r[m.precio]); 
+      const d=toNum(r[m.descuento]);
+      const costo=p*(1-d/100); 
+      
+      // Calcular el valor unitario con envío si existe
+      const vUnit=costo*(factor||1) + (envio || 0);
+      
+      return {
+        item:idx+1,
+        referencia:String(r[m.referencia]||'').trim(),
+        cant,
+        descripcion:String(r[m.descripcion]||'').trim(),
+        disponibilidad:disponibilidad(r[m.fecha]),
+        precioLista:p,
+        boton:botonGlobal,
+        dcto:d,
+        factorUtil:factor,
+        vUnitVenta:vUnit,
+        vTotal:vUnit*cant,
+        envio: envio || 0  // Guardamos el valor de envío para usarlo después
+      };
+    }).filter(x=>x.referencia);
+
+    const meta={cliente:($('#cliente').value||'').toUpperCase(),fechaElab:$('#fechaElab').value||''};
+    const name=($('#outName').value.trim()||`Q0000-XXX-${String(new Date().getFullYear()).slice(-2)}`).toUpperCase();
+
+  // ===== ExcelJS con estilos =====
+  async function buildWorkbookExcelJS(items, meta, cfg={}){
+    const wb=new ExcelJS.Workbook();
+
+    /* ------------------ LOCATIVO (empieza en B2) ------------------ */
+    const ws=wb.addWorksheet('LOCATIVO');
+    const thin={style:'thin',color:{argb:'FF000000'}}, box={top:thin,left:thin,bottom:thin,right:thin}, center={vertical:'middle',horizontal:'center'};
+
+    ws.columns=[{width:2.5},{width:6},{width:9},{width:20},{width:8},{width:46},{width:22},{width:14},{width:10},{width:10},{width:12},{width:14},{width:14},{width:16},{width:16}];
+
+    ws.mergeCells('B2:O2'); ws.getCell('B2').value='TABLA DE COSTOS'; ws.getCell('B2').font={bold:true,size:14}; ws.getCell('B2').alignment=center;
+    ws.mergeCells('B4:I4'); ws.getCell('B4').value=`CLIENTE: ${meta.cliente||''}`; ws.getCell('B4').border=box;
+    ws.mergeCells('B5:I5'); ws.getCell('B5').value=`FECHA DE ELABORACIÓN COTIZACIÓN: ${meta.fechaElab||''}`; ws.getCell('B5').border=box;
+    ws.mergeCells('B6:I6'); ws.getCell('B6').value=`O.C ANTERIOR DEL CLIENTE:            FECHA:`; ws.getCell('B6').border=box;
+    ws.mergeCells('B7:I7'); ws.getCell('B7').value=`O.C ACTUAL DEL CLIENTE:              FECHA:`; ws.getCell('B7').border=box;
+
+    const hdr=['ITEM','# PARTE','REFERENCIA','CANT','DESCRIPCION','DISPONIBILIDAD','PRECIO LISTA','BOTÓN','% DESC.','EXISTENCIA','V/COSTO','FACT. UTILIDAD','V/UNIT VENTA','V/TOTAL'];
+    const startRow=9, startCol=2;
+    for(let i=0;i<hdr.length;i++){ const c=ws.getCell(startRow,startCol+i); c.value=hdr[i]; c.font={bold:true}; c.alignment={vertical:'middle',horizontal:'center',wrapText:true}; c.border=box; }
+    let r=startRow+1; const dataStart=r;
+
+    // En buildWorkbookExcelJS(), dentro del loop que crea las filas de LOCATIVO:
+    for(const it of items){
+      const c=(i)=>ws.getCell(r,startCol+i);
+      c(0).value=it.item;
+      c(2).value=it.referencia;
+      c(3).value=it.cant;
+      c(4).value=it.descripcion;
+      c(5).value=it.disponibilidad;
+      c(6).value=it.precioLista;
+      c(7).value=it.boton;
+      c(8).value=it.dcto/100;
+      c(10).value={formula:`H${r}*(1 - J${r})`};
+      c(11).value=it.factorUtil;
+      
+      // MODIFICAR ESTA LÍNEA - Sumar el envío directamente en la fórmula
+      if (it.envio > 0) {
+        c(12).value={formula:`(L${r}*M${r})+${it.envio}`};
+      } else {
+        c(12).value={formula:`L${r}*M${r}+0`};
+      }
+      
+      c(13).value={formula:`N${r}*E${r}`};
+      c(6).numFmt='"$" #,##0'; c(8).numFmt='0%'; c(10).numFmt='"$" #,##0'; c(12).numFmt='"$" #,##0'; c(13).numFmt='"$" #,##0';
+      
+      for(let i=0;i<hdr.length;i++) ws.getCell(r,startCol+i).border=box;
+      ws.getCell(r,startCol+0).alignment=center; ws.getCell(r,startCol+3).alignment=center; ws.getCell(r,startCol+8).alignment=center;
+      r++;
+    }
+
+    const foot=r+1;
+    ws.mergeCells(foot, startCol, foot, startCol+8); ws.getCell(foot,startCol).value='I.V.A NO INCLUIDO'; ws.getCell(foot,startCol).border=box;
+    ws.mergeCells(foot, startCol+10, foot, startCol+11); ws.getCell(foot,startCol+10).value='TOTAL:'; ws.getCell(foot,startCol+10).alignment=center; ws.getCell(foot,startCol+10).border=box;
+    ws.getCell(foot,startCol+13).value={ formula:`SUM(O${dataStart}:O${r-1})` }; ws.getCell(foot,startCol+13).numFmt='"$" #,##0'; ws.getCell(foot,startCol+13).border=box;
+
+    const fr=foot+3;
+    ws.mergeCells(fr,startCol,fr,startCol+5); ws.getCell(fr,startCol).value='FIRMA DE COMERCIAL:'; ws.getCell(fr,startCol).border=box;
+    ws.mergeCells(fr,startCol+6,fr,startCol+13); ws.getCell(fr,startCol+6).value='FIRMA DE COMPRAS:'; ws.getCell(fr,startCol+6).border=box;
+
+    /* ------------------ VENTA (empieza en D4) ------------------ */
+    const wv=wb.addWorksheet('VENTA');
+    wv.columns=[{width:3},{width:3},{width:3},{width:6},{width:8},{width:75},{width:22},{width:18},{width:18}];
+    const yellow={type:'pattern',pattern:'solid',fgColor:{argb:'FFFFFF00'}};
+    const thinB={style:'thin',color:{argb:'FF000000'}}, boxThin={top:thinB,left:thinB,bottom:thinB,right:thinB};
+
+    // Fila amarilla vacía D3:I3
+    wv.mergeCells(3,4,3,9);
+    for(let c=4;c<=9;c++){ const cell=wv.getCell(3,c); cell.value=''; cell.fill=yellow; cell.border=boxThin; }
+
+    // Encabezado D4:I4
+    const HDR=['ITEM','CANT','DESCRIPCION','DISPONIBILIDAD','V/UNIT','V/TOTAL'];
+    for(let i=0;i<HDR.length;i++){ const cell=wv.getCell(4,4+i); cell.value=HDR[i]; cell.fill=yellow; cell.font={bold:true}; cell.alignment={vertical:'middle',horizontal:'center',wrapText:true}; cell.border=boxThin; }
+    
+    // Forzar wrapText para toda la columna de DESCRIPCION
+    wv.getColumn(6).alignment = { wrapText: true, vertical:'top', horizontal:'left' };
+    wv.getColumn(6).width = 75; // opcional, ayuda a que Excel recalcule
+
+    // Datos desde D5
+    let rr=5;
+    for(let i=0;i<items.length;i++){
+      const loc = 10 + i; // fila de LOCATIVO
+      const desc = cfg.showRef ? `${items[i].descripcion}\nREF: ${items[i].referencia}` : items[i].descripcion;
+
+      // MODIFICAR ESTAS LÍNEAS - Usar referencias a LOCATIVO en lugar de valores estáticos
+      wv.getCell(rr,4).value={ formula:`LOCATIVO!B${loc}` };  // ITEM (columna C en LOCATIVO)
+      wv.getCell(rr,5).value={ formula:`LOCATIVO!E${loc}` };  // CANT (columna E en LOCATIVO)
+      wv.getCell(rr,6).value = cfg.showRef
+      ? { formula: `LOCATIVO!F${loc}&CHAR(10)&"REF: "&LOCATIVO!D${loc}` }
+      : { formula: `LOCATIVO!F${loc}` };
+      wv.getCell(rr,7).value={ formula:`LOCATIVO!G${loc}` };  // DISP
+      wv.getCell(rr,8).value={ formula:`LOCATIVO!N${loc}` };  // V/UNIT
+      wv.getCell(rr,9).value={ formula:`LOCATIVO!O${loc}` };  // V/TOTAL
+
+      wv.getCell(rr,6).alignment = { vertical:'top', horizontal:'left', wrapText:true };
+
+      // Alineaciones exactas
+      wv.getCell(rr,4).alignment={vertical:'middle',horizontal:'center'};
+      wv.getCell(rr,5).alignment={vertical:'middle',horizontal:'center'};
+      wv.getCell(rr,6).alignment = { vertical:'top', horizontal:'left', wrapText:true };
+      wv.getCell(rr,7).alignment={vertical:'middle',horizontal:'center',wrapText:true};
+      wv.getCell(rr,8).alignment={vertical:'middle',horizontal:'right'};
+      wv.getCell(rr,9).alignment={vertical:'middle',horizontal:'right'};
+
+      // Formato & bordes
+      wv.getCell(rr,8).numFmt='"$" #,##0';
+      wv.getCell(rr,9).numFmt='"$" #,##0';
+      for(let c=4;c<=9;c++) wv.getCell(rr,c).border=boxThin;
+      rr++;
+    }
+    const last=rr-1;
+
+    if((cfg.descuentoPct||0) > 0){
+      const rowSub = last + 1;
+      wv.mergeCells(rowSub,4,rowSub,8);
+      wv.getCell(rowSub,4).value='SUBTOTAL';
+      wv.getCell(rowSub,4).alignment={horizontal:'right',vertical:'middle'};
+      wv.getCell(rowSub,4).font={bold:true};
+      wv.getCell(rowSub,9).value={ formula:`SUM(I5:I${last})` };
+      wv.getCell(rowSub,9).numFmt='"$" #,##0';
+
+      const rowDesc = rowSub + 1;
+      wv.mergeCells(rowDesc,4,rowDesc,8);
+      wv.getCell(rowDesc,4).value=`DESCUENTO (${Math.round((cfg.descuentoPct||0)*100)}%)`;
+      wv.getCell(rowDesc,4).alignment={horizontal:'right',vertical:'middle'};
+      wv.getCell(rowDesc,4).font={bold:true};
+      wv.getCell(rowDesc,9).value={ formula:`I${rowSub}*${(cfg.descuentoPct||0)}` };
+      wv.getCell(rowDesc,9).numFmt='"$" #,##0';
+
+      const rowTot = rowDesc + 1;
+      wv.mergeCells(rowTot,4,rowTot,8);
+      wv.getCell(rowTot,4).value='TOTAL';
+      wv.getCell(rowTot,4).alignment={horizontal:'right',vertical:'middle'};
+      wv.getCell(rowTot,4).font={bold:true};
+      wv.getCell(rowTot,9).value={ formula:`I${rowSub}-I${rowDesc}` };
+      wv.getCell(rowTot,9).numFmt='"$" #,##0';
+
+      const rowIva = rowTot + 1;
+      wv.mergeCells(rowIva,4,rowIva,9);
+      wv.getCell(rowIva,4).value='IVA NO INCLUIDO';
+      wv.getCell(rowIva,4).alignment={horizontal:'center',vertical:'middle'};
+      wv.getCell(rowIva,4).font={bold:true};
+
+      const yellow={type:'pattern',pattern:'solid',fgColor:{argb:'FFFFFF00'}};
+      for(const r of [rowSub,rowDesc,rowTot,rowIva]){
+        for(let c=4;c<=9;c++){ const cell=wv.getCell(r,c); cell.fill=yellow; cell.border=thinB?{top:thinB,left:thinB,bottom:thinB,right:thinB}:undefined; }
+      }
+    } else {
+      const rowTot = last + 1;
+      wv.mergeCells(rowTot,4,rowTot,8);
+      wv.getCell(rowTot,4).value='TOTAL';
+      wv.getCell(rowTot,4).alignment={horizontal:'right',vertical:'middle'};
+      wv.getCell(rowTot,4).font={bold:true};
+      wv.getCell(rowTot,9).value={ formula:`SUM(I5:I${last})` };
+      wv.getCell(rowTot,9).numFmt='"$" #,##0';
+
+      const rowIva = rowTot + 1;
+      wv.mergeCells(rowIva,4,rowIva,9);
+      wv.getCell(rowIva,4).value='IVA NO INCLUIDO';
+      wv.getCell(rowIva,4).alignment={horizontal:'center',vertical:'middle'};
+      wv.getCell(rowIva,4).font={bold:true};
+
+      const yellow={type:'pattern',pattern:'solid',fgColor:{argb:'FFFFFF00'}};
+      for(const r of [rowTot,rowIva]){
+        for(let c=4;c<=9;c++){ const cell=wv.getCell(r,c); cell.fill=yellow; cell.border={top:thinB,left:thinB,bottom:thinB,right:thinB}; }
+      }
+    }
+    // Forzar recálculo al abrir
+    wb.calcProperties.fullCalcOnLoad = true;
+
+    return wb;
+  }
+
+  // === RAMA EXCELJS (dentro de generateExcel, después de buildWorkbookExcelJS) ===
+if(window.ExcelJS){
+  const wb=await buildWorkbookExcelJS(items,meta,{envio,descuentoPct,showRef});
+  const buf=await wb.xlsx.writeBuffer({useStyles:true});
+  const blob=new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+
+  // 1) Intentar que el PADRE haga la descarga (evita bloqueo del iframe)
+  if (!postDownloadToParent(blob, name+'.xlsx')) {
+    // 2) Si no se pudo, usa tu flujo actual (picker) y luego fallback
+    const success = await downloadExcelWithFilePicker(blob, name+'.xlsx');
+    if (!success) downloadExcelWithFallback(blob, name+'.xlsx');
+  }
+} else {
+  // === RAMA SHEETJS (fallback) ===
+  const wb=buildWorkbookSheetJS(items,meta,{envio,descuentoPct,showRef});
+  const arr = XLSX.write(wb, {type:'array', bookType:'xlsx'});
+  const blob = new Blob([arr], {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+
+  // 1) Intentar descarga en el PADRE
+  if (!postDownloadToParent(blob, name+'.xlsx')) {
+    // 2) Si no, intenta picker y luego fallback nativo de SheetJS
+    const success = await downloadExcelWithFilePicker(blob, name+'.xlsx');
+    if (!success) XLSX.writeFile(wb, name+'.xlsx');
+  }
+}
+}
+
+  // ===== Fallback SheetJS =====
+  function buildWorkbookSheetJS(items, meta, cfg={}){
+    const wb = XLSX.utils.book_new();
+
+    // LOCATIVO (B2)
+    const locHeaders=['ITEM','# PARTE','REFERENCIA','CANT','DESCRIPCION','DISPONIBILIDAD','PRECIO LISTA','BOTÓN','% DESC.','EXISTENCIA','V/COSTO','FACT. UTILIDAD','V/UNIT VENTA','V/TOTAL'];
+    const locData=[ ['','TABLA DE COSTOS'], [], ['',`CLIENTE: ${meta.cliente||''}`], ['',`FECHA DE ELABORACIÓN COTIZACIÓN: ${meta.fechaElab||''}`], ['',`O.C ANTERIOR DEL CLIENTE:            FECHA:`], ['',`O.C ACTUAL DEL CLIENTE:              FECHA:`], [], ['',...locHeaders],
+      ...items.map(it=>['',it.item,'',it.referencia,it.cant,it.descripcion,it.disponibilidad,it.precioLista,it.boton,it.dcto/100,'',null,it.factorUtil,null,null])
+    ];
+    const wsLoc=XLSX.utils.aoa_to_sheet(locData);
+    wsLoc['!merges']=[
+      XLSX.utils.decode_range('B2:O2'),
+      XLSX.utils.decode_range('B4:I4'),
+      XLSX.utils.decode_range('B5:I5'),
+      XLSX.utils.decode_range('B6:I6'),
+      XLSX.utils.decode_range('B7:I7'),
+    ];
+    wsLoc['!cols']=[{wch:3},{wch:6},{wch:9},{wch:20},{wch:8},{wch:46},{wch:22},{wch:14},{wch:10},{wch:10},{wch:12},{wch:14},{wch:14},{wch:16},{wch:16}];
+    const startData=10;
+    items.forEach((it,i)=>{ 
+  const r=startData+i; 
+  
+  // MODIFICAR ESTAS LÍNEAS - Sumar el envío directamente en la fórmula
+  if (it.envio > 0) {
+    wsLoc['N'+r]={t:'n',f:`(L${r}*M${r})+${it.envio}`};
+  } else {
+    wsLoc['N'+r]={t:'n',f:`L${r}*M${r}+0`};
+  }
+  
+  wsLoc['O'+r]={t:'n',f:`N${r}*E${r}`}; 
+  wsLoc['L'+r]={t:'n',f:`H${r}*(1 - J${r})`}; 
+});
+
+    XLSX.utils.book_append_sheet(wb, wsLoc, 'LOCATIVO');
+
+    // VENTA (D4) + fila amarilla (sin estilos avanzados en fallback)
+    const wsVen=XLSX.utils.aoa_to_sheet([]);
+    wsVen['!merges']=[XLSX.utils.decode_range('D3:I3')];
+    XLSX.utils.sheet_add_aoa(wsVen, [['ITEM','CANT','DESCRIPCION','DISPONIBILIDAD','V/UNIT','V/TOTAL']], {origin:'D4'});
+    items.forEach((it,i)=>{
+      const r=5+i, loc=10+i;
+      const desc = cfg.showRef ? `${it.descripcion}\nREF: ${it.referencia}` : it.descripcion;
+      XLSX.utils.sheet_add_aoa(wsVen, [
+        [
+          {f:`LOCATIVO!B${loc}`},  // ITEM (columna C en LOCATIVO)
+          {f:`LOCATIVO!E${loc}`},  // CANT (columna E en LOCATIVO)
+          desc, 
+          {f:`LOCATIVO!G${loc}`},
+          {f:`LOCATIVO!N${loc}`},
+          {f:`LOCATIVO!O${loc}`}
+        ]
+      ], {origin:`D${r}`} );
+    });
+  
+    const last=4+items.length;
+
+    if((cfg.descuentoPct||0)>0){
+      const rowSub=last+1, rowDesc=rowSub+1, rowTot=rowDesc+1, rowIva=rowTot+1;
+      wsVen['!merges']=wsVen['!merges'].concat([
+        XLSX.utils.decode_range(`D${rowSub}:H${rowSub}`),
+        XLSX.utils.decode_range(`D${rowDesc}:H${rowDesc}`),
+        XLSX.utils.decode_range(`D${rowTot}:H${rowTot}`),
+        XLSX.utils.decode_range(`D${rowIva}:I${rowIva}`)
+      ]);
+      XLSX.utils.sheet_add_aoa(wsVen, [[ 'SUBTOTAL', null,null,null,null, {f:`SUM(I5:I${last})`} ]], {origin:`D${rowSub}`} );
+      XLSX.utils.sheet_add_aoa(wsVen, [[ `DESCUENTO (${Math.round((cfg.descuentoPct||0)*100)}%)`, null,null,null,null, {f:`I${rowSub}*${(cfg.descuentoPct||0)}`} ]], {origin:`D${rowDesc}`} );
+      XLSX.utils.sheet_add_aoa(wsVen, [[ 'TOTAL', null,null,null,null, {f:`I${rowSub}-I${rowDesc}`} ]], {origin:`D${rowTot}`} );
+      XLSX.utils.sheet_add_aoa(wsVen, [[ 'IVA NO INCLUIDO' ]], {origin:`D${rowIva}`} );
+    } else {
+      const rowTot=last+1, rowIva=rowTot+1;
+      wsVen['!merges']=wsVen['!merges'].concat([
+        XLSX.utils.decode_range(`D${rowTot}:H${rowTot}`),
+        XLSX.utils.decode_range(`D${rowIva}:I${rowIva}`)
+      ]);
+      XLSX.utils.sheet_add_aoa(wsVen, [[ 'TOTAL', null,null,null,null, {f:`SUM(I5:I${last})`} ]], {origin:`D${rowTot}`} );
+      XLSX.utils.sheet_add_aoa(wsVen, [[ 'IVA NO INCLUIDO' ]], {origin:`D${rowIva}`} );
+    }
+    wsVen['!cols']=[{wch:3},{wch:3},{wch:3},{wch:6},{wch:8},{wch:75},{wch:22},{wch:18},{wch:18}];
+
+    XLSX.utils.book_append_sheet(wb, wsVen, 'VENTA');
+    return wb;
+  }
+  </script>
+
+  <!-- Motores -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js" defer crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/exceljs@4.3.0/dist/exceljs.min.js" defer crossorigin="anonymous"></script>
+</body>
+</html>

@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>PORTAL DE COTIZACIONES INGETES</title>
+  <style>
+    :root{
+      --bg1:#ffffff; --bg2:#f1f5f9; --card:#ffffff; --border:#e2e8f0; --text:#0f172a; --muted:#475569;
+      --shadow:0 10px 30px rgba(2,6,23,.08); --radius:16px;
+      /* Tipografía uniforme */
+      --h1:32px; --h2:24px; --h3:18px; --body:16px; --small:14px;
+      --tab:#e2e8f0; --tabActive:#0f172a; --tabText:#334155;
+    }
+    *{box-sizing:border-box} html,body{height:100%}
+    body{margin:0;font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Arial;
+      background:linear-gradient(to bottom,var(--bg1),var(--bg2)); color:var(--text); min-height:100vh; padding:24px; font-size:var(--body)}
+    .hidden{display:none!important}
+
+    /* Tipografía */
+    h1{font-size:var(--h1);font-weight:800;letter-spacing:.3px;margin:0 0 14px}
+    h2{font-size:var(--h2);font-weight:800;margin:0}
+    h3{font-size:var(--h3);font-weight:700;margin:0 0 6px}
+    .muted{color:var(--muted);font-size:var(--small)}
+    .lead{font-size:17px}
+    .chip{font-size:11px;color:#64748b;text-transform:uppercase}
+
+    /* Contenedores y botones */
+    .container{width:100%;max-width:980px;margin:0 auto}
+    .card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);padding:40px;text-align:center}
+    .panel{width:100%;max-width:1180px;margin:0 auto}
+    .panel-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);padding:28px}
+    .row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+    .grid{display:grid;gap:16px}
+    @media(min-width:960px){ .grid-3{grid-template-columns:1fr 1fr 1fr} }
+    .box{border:1px solid var(--border);border-radius:12px;padding:16px}
+    .stack{display:grid;gap:10px}
+    .btn{appearance:none;border:1px solid var(--border);background:#fff;color:#334155;padding:12px 20px;border-radius:12px;cursor:pointer;text-decoration:none;display:inline-block;box-shadow:0 6px 16px rgba(2,6,23,.06);transition:transform .06s,box-shadow .2s}
+    .btn:hover{box-shadow:0 10px 24px rgba(2,6,23,.10)} .btn:active{transform:scale(.99)}
+    .btn-wide{display:block;width:100%;text-align:center}
+    .btn-small{padding:8px 14px;border-radius:10px;font-size:var(--small)}
+
+    /* Portada */
+    .logo{display:flex;justify-content:center;margin-bottom:20px}
+    .logo img{height:140px;object-fit:contain}
+    .desc{color:var(--muted);line-height:1.85;max-width:70ch;margin:0 auto;text-align:justify}
+
+    /* Inputs / misc */
+    .input{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:10px;background:#fff}
+    .panel-soft{background:#fff;border:1px solid var(--border);border-radius:16px}
+    .box-soft{border:1px solid var(--border);border-radius:12px;padding:12px}
+    pre.preview{white-space:pre-wrap;line-height:1.6;border:1px solid var(--border);border-radius:12px;padding:12px;background:#fff}
+    .embedded{width:100%;min-height:80vh;border:1px solid var(--border);border-radius:12px}
+
+    /* Tabs (Cotizador Normal) */
+    .tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+    .tab{background:#fff;border:1px solid var(--border);color:var(--tabText);padding:10px 14px;border-radius:999px;cursor:pointer}
+    .tab.active{background:var(--tabActive);border-color:var(--tabActive);color:#fff}
+    .tab-panel{display:none}
+    .tab-panel.active{display:block}
+
+    /* Modal Ajustes */
+    .modal-backdrop{position:fixed;inset:0;background:rgba(2,6,23,.45);display:none;align-items:center;justify-content:center;padding:16px;z-index:50}
+    .modal{background:#fff;border:1px solid var(--border);border-radius:16px;box-shadow:var(--shadow);max-width:560px;width:100%}
+    .modal-header{display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);padding:14px 16px}
+    .modal-body{padding:16px}
+    .modal-footer{display:flex;gap:10px;justify-content:flex-end;border-top:1px solid var(--border);padding:12px 16px}
+  </style>
+</head>
+<body>
+  <main id="app">
+    <!-- ===== PORTADA ===== -->
+    <section id="landing" class="container">
+      <div class="card">
+        <div class="logo"><img src="ingetes.jpg" alt="Logo INGETES" onerror="this.remove()" /></div>
+        <h1>PORTAL DE COTIZACIONES INGETES</h1>
+        <p class="desc lead">
+          Este portal centraliza y simplifica el trabajo de cotizaciones para el equipo comercial de INGETES. Desde una
+          interfaz clara podrás descargar listas de precios, consultar referencias, aplicar descuentos, TRM y fletes, y
+          generar documentos con formato corporativo. Integraremos los aplicativos existentes –cotizador rápido, normal y
+          de proyectos– para mantener un flujo coherente, trazable y ágil. Haz clic en «Iniciar» para acceder al portal.
+        </p>
+        <div style="margin-top:24px">
+          <button id="startBtn" type="button" class="btn" onclick="window.__goPanel && window.__goPanel()">Iniciar</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== PANEL PRINCIPAL ===== -->
+    <section id="panel" class="panel hidden" aria-hidden="true">
+      <div class="panel-card">
+        <div class="row" style="justify-content:space-between;margin-bottom:10px">
+          <div class="row"><img src="ingetes.jpg" alt="" style="height:40px"><h2 style="margin-left:10px">Portal de cotizaciones</h2></div>
+          <button id="openSettings" class="btn btn-small">⚙️ Ajustes</button>
+        </div>
+
+        <div class="grid grid-3">
+          <!-- Descargar Documentación -->
+          <div class="box">
+            <h3>Descargar Documentación</h3>
+            <p class="muted">Recursos corporativos como listas de precios, plantillas y guías.</p>
+            <div class="stack">
+              <a id="lnkSiemens"  href="./Listaprecios2025.pdf" target="_blank" rel="noopener" class="btn btn-wide">Lista de precios Siemens</a>
+              <a id="lnkMotores"  href="./ListaPreciosMotores.pdf"   target="_blank" rel="noopener" class="btn btn-wide">Lista de Precios de Motores</a>
+              <a id="lnkIngetes"  href="./ListaPreciosIngetes.pdf"   target="_blank" rel="noopener" class="btn btn-wide">Lista de Precios Ingetes</a>
+            </div>
+          </div>
+
+          <!-- Cotizadores -->
+          <div class="box">
+            <h3>Cotizadores</h3>
+            <p class="muted">Elige el tipo de cotización que deseas elaborar.</p>
+            <div class="stack">
+              <button id="goFast" class="btn btn-wide">Cotizador Rápido</button>
+              <button id="goNormal" class="btn btn-wide">Cotizador Normal</button>
+              <button class="btn btn-wide" disabled style="opacity:.6;cursor:not-allowed">Cotizador de proyectos (próx.)</button>
+            </div>
+          </div>
+
+          <!-- Diseño de Proyectos -->
+          <div class="box">
+            <h3>Diseño de Proyectos</h3>
+            <p class="muted">Accesos directos a herramientas de diseño y seguimiento.</p>
+            <div class="stack">
+              <button id="goBoard" class="btn btn-wide">Tablero</button>
+              <button id="goEngineering" class="btn btn-wide">Ingeniería</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== COTIZADOR RÁPIDO ===== -->
+    <section id="cotizadorRapido" class="hidden" aria-hidden="true">
+      <div class="panel-card">
+        <div class="row" style="justify-content:space-between;margin-bottom:12px">
+          <div class="row"><img src="ingetes.jpg" alt="" style="height:42px"><h2 style="margin-left:10px">Cotizador Rápido</h2></div>
+          <button id="backToPanel" class="btn btn-small">← Volver</button>
+        </div>
+        <iframe
+        id="fastFrame"
+        class="embedded"
+        src="cotizador_rapido_ingetes.html"
+        title="Cotizador Rápido"
+        sandbox="allow-scripts allow-same-origin allow-downloads allow-popups allow-top-navigation-by-user-activation"
+        allow="clipboard-read; clipboard-write; file-system-access; fullscreen"
+      ></iframe>
+      </div>
+    </section>
+
+
+    <!-- ===== COTIZADOR NORMAL (TABS: Excel | Word) ===== -->
+    <section id="cotizadorNormal" class="hidden" aria-hidden="true">
+      <div class="panel-card">
+        <div class="row" style="justify-content:space-between;margin-bottom:12px">
+          <div class="row"><img src="ingetes.jpg" alt="" style="height:42px"><h2 style="margin-left:10px">Cotizador Normal</h2></div>
+          <button id="backToPanelFromNormal" class="btn btn-small">← Volver</button>
+        </div>
+
+        <!-- Tabs -->
+        <div class="tabs" role="tablist" aria-label="Tipos de generador">
+          <button id="tabExcel" class="tab active" role="tab" aria-selected="true" aria-controls="panelExcel">Excel (.xlsx)</button>
+          <button id="tabWord"  class="tab" role="tab" aria-selected="false" aria-controls="panelWord">Word (.docx)</button>
+        </div>
+
+        <!-- Panel Excel -->
+        <div id="panelExcel" class="tab-panel active" role="tabpanel" aria-labelledby="tabExcel">
+          <iframe
+            id="normalFrameExcel"
+            class="embedded"
+            src="GeneradorCotizacionEXCEL.html"
+            title="Generador Excel"
+            sandbox="allow-scripts allow-same-origin allow-downloads"
+            allow="clipboard-read; clipboard-write; file-system-access; fullscreen"
+          ></iframe>
+        </div>
+
+        <!-- Panel Word -->
+        <div id="panelWord" class="tab-panel" role="tabpanel" aria-labelledby="tabWord">
+          <iframe
+            id="normalFrameWord"
+            class="embedded"
+            src="GeneradorCotizacionWORD.html"
+            title="Generador Word"
+            sandbox="allow-scripts allow-same-origin allow-downloads"
+            allow="clipboard-read; clipboard-write; file-system-access; fullscreen"
+          ></iframe>
+        </div>
+      </div>
+    </section>
+    <!-- ===== COTIZACIÓN INGENIERÍA ===== -->
+    <section id="cotizacionIngenieria" class="hidden" aria-hidden="true">
+      <div class="panel-card">
+        <div class="row" style="justify-content:space-between;margin-bottom:12px">
+          <div class="row"><img src="ingetes.jpg" alt="" style="height:42px"><h2 style="margin-left:10px">Cotización Ingeniería</h2></div>
+          <button id="backToPanelFromIngenieria" class="btn btn-small">← Volver</button>
+        </div>
+        <iframe id="frameIngenieria" class="embedded" src="CotizacionIngenieria.html" title="Cotización Ingeniería"></iframe>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ===== MODAL AJUSTES (login + archivos) ===== -->
+  <div id="settingsModal" class="modal-backdrop" aria-hidden="true">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
+      <div class="modal-header">
+        <h3 id="settingsTitle">Ajustes</h3>
+        <button id="closeSettings" class="btn btn-small" aria-label="Cerrar">✕</button>
+      </div>
+      <div class="modal-body">
+        <!-- Login -->
+        <div id="settingsLogin">
+          <p class="muted">Ingresa la clave de administrador para continuar.</p>
+          <div class="row" style="align-items:flex-end">
+            <label>Clave admin<br><input id="admPass" type="password" class="input" placeholder="••••" style="min-width:200px"></label>
+            <button id="btnLogin" class="btn">Ingresar</button>
+          </div>
+        </div>
+        <!-- Contenido -->
+        <div id="settingsContent" class="hidden">
+          <p class="muted">Actualiza los documentos de descarga (solo para esta sesión del navegador).</p>
+          <div class="stack">
+            <label>Lista Siemens (PDF)<br><input id="fileSiemens" type="file" accept="application/pdf" class="input"></label>
+            <label>Lista Motores (PDF)<br><input id="fileMotores" type="file" accept="application/pdf" class="input"></label>
+            <label>Lista Ingetes (PDF)<br><input id="fileIngetes" type="file" accept="application/pdf" class="input"></label>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="btnSaveDocs" class="btn hidden">Guardar cambios</button>
+        <button id="btnLogout" class="btn btn-small hidden">Cerrar sesión</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+  // ===== Navegación base + Tabs del Cotizador Normal =====
+  (function(){
+    const $ = (id)=>document.getElementById(id);
+    const show=(el)=>{ if(el){ el.classList.remove('hidden'); el.setAttribute('aria-hidden','false'); } };
+    const hide=(el)=>{ if(el){ el.classList.add('hidden'); el.setAttribute('aria-hidden','true'); } };
+
+    const landing=$('landing'), panel=$('panel'), fast=$('cotizadorRapido'), normal=$('cotizadorNormal');
+    window.__goPanel = function(){ hide(landing); show(panel); window.scrollTo({top:0,behavior:'smooth'}); };
+    function goFast(){ hide(panel); show(fast); window.scrollTo({top:0,behavior:'smooth'}); }
+    function goNormal(){ hide(panel); show(normal); window.scrollTo({top:0,behavior:'smooth'}); }
+    function backFromFast(){ hide(fast); show(panel); }
+    function backFromNormal(){ hide(normal); show(panel); }
+
+    $('startBtn')?.addEventListener('click', e=>{ e.preventDefault(); window.__goPanel(); });
+    $('goFast')?.addEventListener('click',  e=>{ e.preventDefault(); goFast(); });
+    $('goNormal')?.addEventListener('click',e=>{ e.preventDefault(); goNormal(); });
+    $('backToPanel')?.addEventListener('click', e=>{ e.preventDefault(); backFromFast(); });
+    $('backToPanelFromNormal')?.addEventListener('click', e=>{ e.preventDefault(); backFromNormal(); });
+
+    // Tabs
+    const tabExcel=$('tabExcel'), tabWord=$('tabWord');
+    const panelExcel=$('panelExcel'), panelWord=$('panelWord');
+    function activate(which){
+      const isExcel=which==='excel';
+      tabExcel.classList.toggle('active',isExcel);
+      tabWord.classList.toggle('active',!isExcel);
+      panelExcel.classList.toggle('active',isExcel);
+      panelWord.classList.toggle('active',!isExcel);
+    }
+    tabExcel?.addEventListener('click', ()=>activate('excel'));
+    tabWord?.addEventListener('click',  ()=>activate('word'));
+
+    // ===== Modal de Ajustes =====
+    const modal=$('settingsModal');
+    const openBtn=$('openSettings'), closeBtn=$('closeSettings');
+    const loginView=$('settingsLogin'), contentView=$('settingsContent');
+    const btnLogin=$('btnLogin'), btnSave=$('btnSaveDocs'), btnLogout=$('btnLogout');
+    const PASS='admin'; let logged=false;
+
+    function openModal(){
+      modal.style.display='flex'; modal.setAttribute('aria-hidden','false');
+      loginView.classList.toggle('hidden', logged);
+      contentView.classList.toggle('hidden', !logged);
+      btnSave.classList.toggle('hidden', !logged);
+      btnLogout.classList.toggle('hidden', !logged);
+    }
+    function closeModal(){ modal.style.display='none'; modal.setAttribute('aria-hidden','true'); }
+
+    openBtn?.addEventListener('click', openModal);
+    closeBtn?.addEventListener('click', closeModal);
+    modal?.addEventListener('click', (e)=>{ if(e.target===modal) closeModal(); });
+
+    btnLogin?.addEventListener('click', ()=>{
+      const ok=(document.getElementById('admPass').value.trim()===PASS);
+      if(!ok){ alert('Clave incorrecta'); return; }
+      logged=true; loginView.classList.add('hidden'); contentView.classList.remove('hidden');
+      btnSave.classList.remove('hidden'); btnLogout.classList.remove('hidden');
+    });
+    btnLogout?.addEventListener('click', ()=>{
+      logged=false; document.getElementById('admPass').value='';
+      contentView.classList.add('hidden'); btnSave.classList.add('hidden'); btnLogout.classList.add('hidden'); loginView.classList.remove('hidden');
+    });
+
+    function setLinkFromFile(inputId, linkId){
+      const input=document.getElementById(inputId);
+      const link=document.getElementById(linkId);
+      const f=input?.files?.[0]; if(!f || !link) return false;
+      const url=URL.createObjectURL(f);
+      link.href=url; link.target='_blank'; return true;
+    }
+    btnSave?.addEventListener('click', ()=>{
+      const ok1=setLinkFromFile('fileSiemens','lnkSiemens');
+      const ok2=setLinkFromFile('fileMotores','lnkMotores');
+      const ok3=setLinkFromFile('fileIngetes','lnkIngetes');
+      alert((ok1||ok2||ok3)?'Enlaces actualizados para esta sesión.':'No se seleccionaron archivos.');
+    });
+
+    const ingenieria = document.getElementById('cotizacionIngenieria');
+
+    document.getElementById('goEngineering')?.addEventListener('click', ()=>{
+      hide(panel);
+      show(ingenieria);
+      window.scrollTo({top:0,behavior:'smooth'});
+    });
+
+    document.getElementById('backToPanelFromIngenieria')?.addEventListener('click', ()=>{
+      hide(ingenieria);
+      show(panel);
+    });
+
+  })();
+  </script>
+
+<script>
+/* === Receptor de descargas desde iframes con preferencia por "Guardar como..." === */
+(function(){
+  async function saveWithPicker(buffer, suggestedName, mime){
+    // Requiere HTTPS o http://localhost
+    if (!('showSaveFilePicker' in window)) return false;
+    try{
+      const isDocx = (mime||'').includes('word');
+      const isXlsx = (mime||'').includes('spreadsheet');
+      const types = [{
+        description: isDocx ? 'Documento Word' : (isXlsx ? 'Archivo Excel' : 'Archivo'),
+        accept: { [mime || 'application/octet-stream']: [ isDocx ? '.docx' : (isXlsx ? '.xlsx' : '.*') ] }
+      }];
+
+      const handle = await window.showSaveFilePicker({
+        suggestedName,
+        types
+      });
+      const writable = await handle.createWritable();
+      await writable.write(new Uint8Array(buffer));
+      await writable.close();
+      return true;
+    }catch(e){
+      // Si el usuario cancela, devolvemos false para caer al fallback
+      if (e && e.name === 'AbortError') return false;
+      console.error('Picker error:', e);
+      return false;
+    }
+  }
+
+  function downloadFallback(buffer, fileName, mime){
+    try{
+      const blob = new Blob([new Uint8Array(buffer)], { type: mime || 'application/octet-stream' });
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement('a');
+      a.href = url; a.download = fileName || 'archivo';
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(()=>URL.revokeObjectURL(url), 2000);
+    }catch(e){
+      alert('No se pudo iniciar la descarga: ' + (e && e.message ? e.message : e));
+    }
+  }
+
+  window.addEventListener('message', async (ev)=>{
+    const d = ev && ev.data;
+    if(!d || d.__ingetes_download !== true) return;
+    // d: { __ingetes_download:true, fileName, mime, buffer(ArrayBuffer) }
+
+    // 1) Intentar mostrar "Guardar como..."
+    const ok = await saveWithPicker(d.buffer, d.fileName, d.mime);
+
+    // 2) Si no se pudo (no soportado o cancelado), usar descarga directa
+    if (!ok) downloadFallback(d.buffer, d.fileName, d.mime);
+  });
+})();
+
+// Manejar alertas desde iframes
+window.addEventListener('message', (ev) => {
+  const d = ev && ev.data;
+  if (!d || d.__ingetes_alert !== true) return;
+  
+  // Mostrar alerta desde el iframe
+  alert(d.message);
+});
+
+</script>
+</body>
+</html>

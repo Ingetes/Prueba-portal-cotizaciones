@@ -1,0 +1,14 @@
+AplicativoBase/
+ ├─ index.html        ← redirección a PortalCotizaciones.html
+ ├─ .nojekyll         ← evita que GitHub Pages bloquee carpetas
+ ├─ PortalCotizaciones.html
+ ├─ CotizacionIngenieria.html
+ ├─ cotizador_rapido_ingetes.html
+ ├─ GeneradorCotizacionEXCEL.html
+ ├─ GeneradorCotizacionWORD.html
+ ├─ ingetes.jpg
+ ├─ ListaPrecios.xlsx
+ ├─ Listapreciosingetes.pdf
+ ├─ Listapreciosmayo2025.pdf
+ ├─ ListaPreciosMotores.pdf
+ └─ MarcaDeAgua.png
