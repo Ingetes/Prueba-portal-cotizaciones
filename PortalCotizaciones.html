@@ -304,7 +304,7 @@ const GH_BRANCH = "main";                // rama
 const GH_TOKEN  = "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";          // tu PAT (poco seguro)
 
 // Si tu token es fine-grained moderno, usa "Bearer"; con classic sirve "token".
-const AUTH_HEADER = `Bearer ${GH_TOKEN}`; // o `token ${GH_TOKEN}`
+const AUTH_HEADER = `token ${GH_TOKEN}`; // o `token ${GH_TOKEN}`
 
 // ---------- utilidades ----------
 async function fileToBase64(file) {
@@ -365,7 +365,7 @@ btnSave?.addEventListener('click', async ()=>{
     const r = await Promise.allSettled([
       subirPDF('fileSiemens','Listaprecios2025.pdf','Lista Siemens'),
       subirPDF('fileMotores','ListaPreciosMotores.pdf','Lista Motores'),
-      subirPDF('fileIngetes','ListaPreciosIngetes.pdf','Lista Ingetes'),
+      subirPDF('fileIngetes','Listapreciosingetes.pdf','Lista Ingetes'),
     ]);
 
     const detalles = [
