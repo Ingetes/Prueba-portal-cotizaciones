@@ -298,42 +298,58 @@
       contentView.classList.add('hidden'); btnSave.classList.add('hidden'); btnLogout.classList.add('hidden'); loginView.classList.remove('hidden');
     });
 
-  // === NUEVO: helpers para subir a tu backend que commitea a GitHub ===
-const ENDPOINT = 'https://TU-ENDPOINT/api/upload'; // <-- cámbialo
+const GH_OWNER  = "TU_USUARIO";          // tu usuario u organización
+const GH_REPO   = "TU_REPO";             // nombre del repo
+const GH_BRANCH = "main";                // rama
+const GH_TOKEN  = "TOKEN_AQUI";          // tu PAT (poco seguro)
 
 async function fileToBase64(file) {
   const buf = await file.arrayBuffer();
   let binary = '';
   const bytes = new Uint8Array(buf);
-  for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
-  return btoa(binary); // base64 sin encabezado data:
+  for (let i=0; i<bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+  return btoa(binary);
 }
 
 async function subirPDF(inputId, rutaEnRepo, etiqueta) {
   const f = document.getElementById(inputId)?.files?.[0];
-  if (!f) return false; // no se seleccionó
+  if (!f) return false;
 
-  // 1) convertir a base64
   const base64 = await fileToBase64(f);
 
-  // 2) mandar al backend
-  const resp = await fetch(ENDPOINT, {
-    method: 'POST',
-    headers: { 'Content-Type':'application/json' },
+  const apiUrl = `https://api.github.com/repos/${GH_OWNER}/${GH_REPO}/contents/${rutaEnRepo}`;
+
+  // comprobar si existe para obtener SHA
+  let sha = undefined;
+  const head = await fetch(apiUrl, {
+    headers: { Authorization:`token ${GH_TOKEN}` }
+  });
+  if (head.ok) {
+    const j = await head.json();
+    sha = j.sha;
+  }
+
+  const resp = await fetch(apiUrl, {
+    method: 'PUT',
+    headers: {
+      Authorization: `token ${GH_TOKEN}`,
+      "Content-Type": "application/json"
+    },
     body: JSON.stringify({
-      adminKey: document.getElementById('admPass').value, // misma clave del modal
-      fileBase64: base64,                                  // sin "data:application/pdf;base64,"
-      path: rutaEnRepo,                                    // nombre exacto en el repo
-      message: `Actualiza ${etiqueta} desde el portal`
+      message: `Actualiza ${etiqueta} desde el portal`,
+      content: base64,
+      sha,
+      branch: GH_BRANCH
     })
   });
 
-  const j = await resp.json().catch(()=>({ok:false,msg:'Respuesta inválida'}));
-  if (!resp.ok || !j.ok) throw new Error(j.msg || 'Error subiendo a GitHub');
+  if (!resp.ok) {
+    const err = await resp.text();
+    throw new Error("Error en GitHub: " + err);
+  }
   return true;
 }
 
-// 3) Hook del botón Guardar para subir a GitHub y refrescar enlaces con cache-busting
 btnSave?.addEventListener('click', async ()=>{
   try {
     const r = await Promise.allSettled([
@@ -341,22 +357,13 @@ btnSave?.addEventListener('click', async ()=>{
       subirPDF('fileMotores','ListaPreciosMotores.pdf','Lista Motores'),
       subirPDF('fileIngetes','ListaPreciosIngetes.pdf','Lista Ingetes'),
     ]);
-
-    const algunoOk = r.some(x => x.status === 'fulfilled' && x.value === true);
-    if (!algunoOk) { alert('No se seleccionaron archivos.'); return; }
-
-    // cache-busting de los enlaces para que se vea de una sin pelear con el CDN
-    const v='?v='+Date.now();
-    const l1=document.getElementById('lnkSiemens'); if(l1) l1.href='./Listaprecios2025.pdf'+v;
-    const l2=document.getElementById('lnkMotores'); if(l2) l2.href='./ListaPreciosMotores.pdf'+v;
-    const l3=document.getElementById('lnkIngetes'); if(l3) l3.href='./ListaPreciosIngetes.pdf'+v;
-
-    alert('PDFs actualizados en GitHub correctamente.');
+    const algunoOk = r.some(x => x.status === 'fulfilled' && x.value);
+    alert(algunoOk ? "PDFs subidos al repo." : "No se seleccionaron archivos.");
   } catch (e) {
-    alert('Error: ' + (e?.message || e));
+    alert("Error: " + e.message);
   }
 });
-
+    
     const ingenieria = document.getElementById('cotizacionIngenieria');
 
     document.getElementById('goEngineering')?.addEventListener('click', ()=>{
