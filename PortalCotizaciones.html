@@ -314,26 +314,38 @@ async function fileToBase64(file) {
   for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
   return btoa(binary);
 }
-async function putGithubFile(path, base64, message){
-  const api = `https://api.github.com/repos/${GH_OWNER}/${GH_REPO}/contents/${encodeURIComponent(path)}`;
 
-  // obtener sha si ya existe
+async function putGithubFile(path, base64, message){
+  const api = `https://api.github.com/repos/${GH_OWNER}/${GH_REPO}/contents/${encodeURIComponent(path)}?ref=${GH_BRANCH}`;
+
+  // 1) Obtener SHA si el archivo existe
   let sha;
-  const head = await fetch(`${api}?ref=${GH_BRANCH}`, {
-    headers: { Authorization: AUTH_HEADER, 'User-Agent':'ingetes-portal' }
+  const head = await fetch(api, {
+    headers: {
+      Authorization: AUTH_HEADER,                // token ghp_/github_pat_
+      Accept: "application/vnd.github+json",
+      "User-Agent": "ingetes-portal"
+    }
   });
   if (head.ok) { const j = await head.json(); sha = j.sha; }
 
-  const resp = await fetch(api, {
+  // 2) Subir (crear/actualizar)
+  const resp = await fetch(api.replace(/\?ref=.*$/, ''), {
     method: 'PUT',
     headers: {
       Authorization: AUTH_HEADER,
-      'User-Agent':'ingetes-portal',
-      'Content-Type':'application/json'
+      Accept: "application/vnd.github+json",
+      "Content-Type": "application/json",
+      "User-Agent": "ingetes-portal"
     },
     body: JSON.stringify({ message, content: base64, sha, branch: GH_BRANCH })
   });
-  if (!resp.ok) throw new Error(await resp.text());
+
+  if (!resp.ok) {
+    const txt = await resp.text();
+    console.error("GitHub PUT error:", resp.status, txt);
+    throw new Error(`GitHub ${resp.status}: ${txt}`);
+  }
   return resp.json();
 }
 
@@ -380,7 +392,7 @@ btnSave?.addEventListener('click', async ()=>{
     const v='?v='+Date.now();
     const l1=document.getElementById('lnkSiemens'); if(l1) l1.href='./Listaprecios2025.pdf'+v;
     const l2=document.getElementById('lnkMotores'); if(l2) l2.href='./ListaPreciosMotores.pdf'+v;
-    const l3=document.getElementById('lnkIngetes'); if(l3) l3.href='./ListaPreciosIngetes.pdf'+v;
+    const l3=document.getElementById('lnkIngetes'); if(l3) l3.href='./Listapreciosingetes.pdf'+v;
 
   } catch (e) {
     alert('Error subiendo: ' + (e?.message || e));
