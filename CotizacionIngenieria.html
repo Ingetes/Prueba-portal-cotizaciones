@@ -145,6 +145,7 @@ header .brand{
   color: var(--muted);
   margin-top: 4px;
 }
+
 </style>
 
 </head>
@@ -160,13 +161,17 @@ header .brand{
 <!-- Datos generales -->
 <div class="card" style="margin-bottom:16px">
   <h2>1) Datos generales</h2>
-  <div class="grid three">
+  <div class="grid two">
     <div>
       <label for="tipoDoc">Tipo <span class="req">*</span></label>
       <select id="tipoDoc"> 
         <option value="" selected>-Seleccionar opción-</option>
         <option>Servicio</option><option>Proyecto</option>
       </select>
+    </div>
+    <div>
+      <label for="cliente" id="clienteLabel">Nombre del cliente <span class="req">*</span></label>
+      <input id="cliente" type="text" placeholder="Escriba aquí"/>
     </div>
     <div>
       <label for="nombreDoc" id="nombreDocLabel">Nombre del servicio o proyecto <span class="req">*</span></label>
@@ -264,7 +269,7 @@ const DESCS = [
   "Días de fin de semana","Viáticos"
 ];
 
-const EDITABLE_PRICE = new Set(["Planos","Elaboración e impr. manual","Dossier técnico"]);
+const EDITABLE_PRICE = new Set(["Planos","Elaboración e impr. manual","Dossier técnico", "Puesta en marcha" ]);
 
 // Filas que usan precio MÁXIMO entre categorías (misma condición)
 const DEPENDIENTES = new Set([
@@ -305,6 +310,7 @@ const alcanceLabel = document.getElementById('alcanceLabel');
 const nombreInp = document.getElementById('nombreDoc');
 const ingenieroInp = document.getElementById('ingeniero');
 const alcanceInp = document.getElementById('alcance');
+const clienteInp = document.getElementById('clienteLabel');
 
 // --- Quitar borde rojo cuando el usuario completa los campos obligatorios ---
 const warnBox = document.getElementById('validacion');
@@ -746,6 +752,20 @@ function applyDefaultPrice(rowIndex, desc){
   const optVal  = selOpt ? selOpt.value : '';
   const condVal = selCond ? selCond.value : '';
 
+// --- Si en "Puesta en marcha" no han elegido condición, no precargar precio
+if (desc === 'Puesta en marcha' && !condVal) {
+  precioMap.set(rowIndex, 0);
+
+  const priceView  = row.querySelector('td:nth-child(4) .price-view');
+  const priceInput = row.querySelector('td:nth-child(4) input.price-input');
+
+  if (priceInput) priceInput.value = '';     // deja el input vacío
+  else if (priceView) priceView.textContent = '$ 0';
+
+  recalcRow(rowIndex);
+  return;                                    // salimos sin calcular nada más
+}
+
   // NUEVO: calcula el precio base
   let price = 0;
   if (DEPENDIENTES.has(desc)) {
@@ -919,6 +939,7 @@ function resetCotizacion(ev){
   if (nombreInp) nombreInp.value = '';
   if (ingInp)    ingInp.value = '';
   if (alcInp)    alcInp.value = '';
+  if (clienteInp) clienteInp.value = '';
 
   // Quita cualquier borde rojo previo
   document.querySelectorAll('.error').forEach(el => el.classList.remove('error'));
@@ -1016,6 +1037,7 @@ document.getElementById('btnDescargar').addEventListener('click', async () => {
     const alcanceVal = (document.getElementById('alcance')  || {}).value || '';
     const ingVal     = (document.getElementById('ingeniero')|| {}).value || '';
     const impPct     = Number(((document.getElementById('impPct') || {}).value) || 10);
+    const clienteVal = (document.getElementById('cliente') || {}).value || '';
 
     /* =====================================================
        2) Arma AOA (sin filas en blanco)
@@ -1027,7 +1049,8 @@ document.getElementById('btnDescargar').addEventListener('click', async () => {
     ===================================================== */
     const rows = [
       ['TIPO',    tipoVal],
-      ['NOMBRE',  nombreVal],
+      ['NOMBRE DEL CLIENTE', clienteVal],
+      ['NOMBRE DEL ' + (tipoVal || 'SERVICIO/PROYECTO').toUpperCase(),  nombreVal],
       ['ALCANCE', alcanceVal],
       ['INGENIERO QUE EJECUTA EL ' + (tipoVal || 'SERVICIO/PROYECTO').toUpperCase(), ingVal],
       ['DESCRIPCIÓN','OPCIÓN','CONDICIÓN','PRECIO','DÍAS','SUBTOTAL']
@@ -1061,7 +1084,7 @@ document.getElementById('btnDescargar').addEventListener('click', async () => {
     ws.columns = [{width:33},{width:33},{width:30},{width:14},{width:10},{width:16}];
 
     // Filas 1–4: título en A, valor en B:F combinado
-    for (let r=1; r<=4; r++){
+    for (let r=1; r<=5; r++){
       ws.getCell(r,1).font = { bold:true };
       safeMerge(ws, r,2, r,6);
       ws.getCell(r,2).alignment = { vertical:'middle', horizontal:'left', wrapText:true };
@@ -1069,7 +1092,7 @@ document.getElementById('btnDescargar').addEventListener('click', async () => {
     }
 
     // Cabecera de la tabla (fila 5)
-    const headerRow = 5;
+    const headerRow = 6;
     for (let c=1; c<=6; c++){
       const cell = ws.getCell(headerRow, c);
       cell.font = { bold:true };
@@ -1174,7 +1197,7 @@ document.getElementById('btnDescargar').addEventListener('click', async () => {
     });
 
     // Alcance está SIEMPRE en fila 3 (B3) por el nuevo layout
-    const alcRow = 3;
+    const alcRow = 4;
     const rr = 5;
     const totalLink = `INGENIERIA!F${rTotalPlus}`;
 
