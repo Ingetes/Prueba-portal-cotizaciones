@@ -349,20 +349,6 @@ async function subirPDF(inputId, rutaEnRepo, etiqueta) {
   }
   return true;
 }
-
-btnSave?.addEventListener('click', async ()=>{
-  try {
-    const r = await Promise.allSettled([
-      subirPDF('fileSiemens','Listaprecios2025.pdf','Lista Siemens'),
-      subirPDF('fileMotores','ListaPreciosMotores.pdf','Lista Motores'),
-      subirPDF('fileIngetes','ListaPreciosIngetes.pdf','Lista Ingetes'),
-    ]);
-    const algunoOk = r.some(x => x.status === 'fulfilled' && x.value);
-    alert(algunoOk ? "PDFs subidos al repo." : "No se seleccionaron archivos.");
-  } catch (e) {
-    alert("Error: " + e.message);
-  }
-});
     
     const ingenieria = document.getElementById('cotizacionIngenieria');
 
