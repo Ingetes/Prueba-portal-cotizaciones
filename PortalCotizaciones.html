@@ -303,52 +303,89 @@ const GH_REPO   = "Prueba-portal-cotizaciones";             // nombre del repo
 const GH_BRANCH = "main";                // rama
 const GH_TOKEN  = "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";          // tu PAT (poco seguro)
 
+// Si tu token es fine-grained moderno, usa "Bearer"; con classic sirve "token".
+const AUTH_HEADER = `Bearer ${GH_TOKEN}`; // o `token ${GH_TOKEN}`
+
+// ---------- utilidades ----------
 async function fileToBase64(file) {
   const buf = await file.arrayBuffer();
   let binary = '';
   const bytes = new Uint8Array(buf);
-  for (let i=0; i<bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+  for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
   return btoa(binary);
 }
+async function putGithubFile(path, base64, message){
+  const api = `https://api.github.com/repos/${GH_OWNER}/${GH_REPO}/contents/${encodeURIComponent(path)}`;
 
-async function subirPDF(inputId, rutaEnRepo, etiqueta) {
-  const f = document.getElementById(inputId)?.files?.[0];
-  if (!f) return false;
-
-  const base64 = await fileToBase64(f);
-
-  const apiUrl = `https://api.github.com/repos/${GH_OWNER}/${GH_REPO}/contents/${rutaEnRepo}`;
-
-  // comprobar si existe para obtener SHA
-  let sha = undefined;
-  const head = await fetch(apiUrl, {
-    headers: { Authorization:`token ${GH_TOKEN}` }
+  // obtener sha si ya existe
+  let sha;
+  const head = await fetch(`${api}?ref=${GH_BRANCH}`, {
+    headers: { Authorization: AUTH_HEADER, 'User-Agent':'ingetes-portal' }
   });
-  if (head.ok) {
-    const j = await head.json();
-    sha = j.sha;
-  }
+  if (head.ok) { const j = await head.json(); sha = j.sha; }
 
-  const resp = await fetch(apiUrl, {
+  const resp = await fetch(api, {
     method: 'PUT',
     headers: {
-      Authorization: `token ${GH_TOKEN}`,
-      "Content-Type": "application/json"
+      Authorization: AUTH_HEADER,
+      'User-Agent':'ingetes-portal',
+      'Content-Type':'application/json'
     },
-    body: JSON.stringify({
-      message: `Actualiza ${etiqueta} desde el portal`,
-      content: base64,
-      sha,
-      branch: GH_BRANCH
-    })
+    body: JSON.stringify({ message, content: base64, sha, branch: GH_BRANCH })
   });
-
-  if (!resp.ok) {
-    const err = await resp.text();
-    throw new Error("Error en GitHub: " + err);
-  }
-  return true;
+  if (!resp.ok) throw new Error(await resp.text());
+  return resp.json();
 }
+
+// ---------- lectura de inputs + subida ----------
+async function subirPDF(inputId, ruta, etiqueta) {
+  const input = document.getElementById(inputId);
+  const f = input && input.files && input.files[0];
+  if (!f) return { seleccionado:false, subido:false };
+
+  const base64 = await fileToBase64(f);
+  await putGithubFile(ruta, base64, `Actualiza ${etiqueta} desde el portal`);
+  return { seleccionado:true, subido:true, nombre:f.name };
+}
+
+btnSave?.addEventListener('click', async ()=>{
+  try {
+    // DEBUG: ver qué detecta el navegador
+    const s1 = document.getElementById('fileSiemens')?.files?.[0]?.name || null;
+    const s2 = document.getElementById('fileMotores')?.files?.[0]?.name || null;
+    const s3 = document.getElementById('fileIngetes')?.files?.[0]?.name || null;
+
+    // Si ninguno tiene archivo seleccionado, avisar y salir
+    if (!s1 && !s2 && !s3) {
+      alert('No se seleccionaron archivos.');
+      return;
+    }
+
+    // Subir cada uno solo si fue seleccionado
+    const r = await Promise.allSettled([
+      subirPDF('fileSiemens','Listaprecios2025.pdf','Lista Siemens'),
+      subirPDF('fileMotores','ListaPreciosMotores.pdf','Lista Motores'),
+      subirPDF('fileIngetes','ListaPreciosIngetes.pdf','Lista Ingetes'),
+    ]);
+
+    const detalles = [
+      s1 ? `Siemens: ${s1} → ${r[0].status==='fulfilled'?'OK':'ERROR'}` : null,
+      s2 ? `Motores: ${s2} → ${r[1].status==='fulfilled'?'OK':'ERROR'}` : null,
+      s3 ? `Ingetes: ${s3} → ${r[2].status==='fulfilled'?'OK':'ERROR'}` : null,
+    ].filter(Boolean).join('\n');
+
+    alert(detalles || 'No se seleccionaron archivos.');
+
+    // Romper caché de los enlaces para ver el cambio de una:
+    const v='?v='+Date.now();
+    const l1=document.getElementById('lnkSiemens'); if(l1) l1.href='./Listaprecios2025.pdf'+v;
+    const l2=document.getElementById('lnkMotores'); if(l2) l2.href='./ListaPreciosMotores.pdf'+v;
+    const l3=document.getElementById('lnkIngetes'); if(l3) l3.href='./ListaPreciosIngetes.pdf'+v;
+
+  } catch (e) {
+    alert('Error subiendo: ' + (e?.message || e));
+  }
+});
     
     const ingenieria = document.getElementById('cotizacionIngenieria');
 
@@ -364,9 +401,7 @@ async function subirPDF(inputId, rutaEnRepo, etiqueta) {
     });
 
   })();
-  </script>
 
-<script>
 /* === Receptor de descargas desde iframes con preferencia por "Guardar como..." === */
 (function(){
   async function saveWithPicker(buffer, suggestedName, mime){
