@@ -298,86 +298,53 @@
       contentView.classList.add('hidden'); btnSave.classList.add('hidden'); btnLogout.classList.add('hidden'); loginView.classList.remove('hidden');
     });
 
-const GH_OWNER  = "Ingetes";          // tu usuario u organización
-const GH_REPO   = "Prueba-portal-cotizaciones";             // nombre del repo
-const GH_BRANCH = "main";                // rama
-const GH_TOKEN  = "";          // tu PAT (poco seguro)
+// === SUBIDA DE PDFs vía API segura en Vercel ===
+const ENDPOINT = 'https://portal-api-nine.vercel.app/api/upload'; // <-- tu URL
 
-// Si tu token es fine-grained moderno, usa "Bearer"; con classic sirve "token".
-const AUTH_HEADER = `token ${GH_TOKEN}`; // o `token ${GH_TOKEN}`
-
-// ---------- utilidades ----------
 async function fileToBase64(file) {
   const buf = await file.arrayBuffer();
   let binary = '';
   const bytes = new Uint8Array(buf);
   for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
-  return btoa(binary);
+  return btoa(binary); // base64 puro (sin encabezado)
 }
 
-async function putGithubFile(path, base64, message){
-  const api = `https://api.github.com/repos/${GH_OWNER}/${GH_REPO}/contents/${encodeURIComponent(path)}?ref=${GH_BRANCH}`;
-
-  // 1) Obtener SHA si el archivo existe
-  let sha;
-  const head = await fetch(api, {
-    headers: {
-      Authorization: AUTH_HEADER,                // token ghp_/github_pat_
-      Accept: "application/vnd.github+json",
-      "User-Agent": "ingetes-portal"
-    }
-  });
-  if (head.ok) { const j = await head.json(); sha = j.sha; }
-
-  // 2) Subir (crear/actualizar)
-  const resp = await fetch(api.replace(/\?ref=.*$/, ''), {
-    method: 'PUT',
-    headers: {
-      Authorization: AUTH_HEADER,
-      Accept: "application/vnd.github+json",
-      "Content-Type": "application/json",
-      "User-Agent": "ingetes-portal"
-    },
-    body: JSON.stringify({ message, content: base64, sha, branch: GH_BRANCH })
-  });
-
-  if (!resp.ok) {
-    const txt = await resp.text();
-    console.error("GitHub PUT error:", resp.status, txt);
-    throw new Error(`GitHub ${resp.status}: ${txt}`);
-  }
-  return resp.json();
-}
-
-// ---------- lectura de inputs + subida ----------
-async function subirPDF(inputId, ruta, etiqueta) {
-  const input = document.getElementById(inputId);
-  const f = input && input.files && input.files[0];
-  if (!f) return { seleccionado:false, subido:false };
+async function subirPDF(inputId, rutaEnRepo, etiqueta) {
+  const f = document.getElementById(inputId)?.files?.[0];
+  if (!f) return false;
 
   const base64 = await fileToBase64(f);
-  await putGithubFile(ruta, base64, `Actualiza ${etiqueta} desde el portal`);
-  return { seleccionado:true, subido:true, nombre:f.name };
+
+  const resp = await fetch(ENDPOINT, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      adminKey: document.getElementById('admPass').value,   // clave del modal
+      fileBase64: base64,                                   // base64 del PDF
+      path: rutaEnRepo,                                     // nombre EXACTO en el repo
+      message: `Actualiza ${etiqueta} desde el portal`
+    })
+  });
+
+  const json = await resp.json().catch(()=>({ ok:false, msg:'Respuesta inválida' }));
+  if (!resp.ok || !json.ok) throw new Error(json.msg || 'Error subiendo a GitHub');
+  return true;
 }
 
 btnSave?.addEventListener('click', async ()=>{
   try {
-    // DEBUG: ver qué detecta el navegador
+    // detectar qué archivos seleccionaste
     const s1 = document.getElementById('fileSiemens')?.files?.[0]?.name || null;
     const s2 = document.getElementById('fileMotores')?.files?.[0]?.name || null;
     const s3 = document.getElementById('fileIngetes')?.files?.[0]?.name || null;
 
-    // Si ninguno tiene archivo seleccionado, avisar y salir
-    if (!s1 && !s2 && !s3) {
-      alert('No se seleccionaron archivos.');
-      return;
-    }
+    if (!s1 && !s2 && !s3) { alert('No se seleccionaron archivos.'); return; }
 
-    // Subir cada uno solo si fue seleccionado
+    // SUBIR (usa los nombres EXACTOS que sirves en los <a>)
     const r = await Promise.allSettled([
       subirPDF('fileSiemens','Listaprecios2025.pdf','Lista Siemens'),
       subirPDF('fileMotores','ListaPreciosMotores.pdf','Lista Motores'),
-      subirPDF('fileIngetes','Listapreciosingetes.pdf','Lista Ingetes'),
+      subirPDF('fileIngetes','Listapreciosingetes.pdf','Lista Ingetes'), // minúsculas exactas
     ]);
 
     const detalles = [
@@ -388,16 +355,17 @@ btnSave?.addEventListener('click', async ()=>{
 
     alert(detalles || 'No se seleccionaron archivos.');
 
-    // Romper caché de los enlaces para ver el cambio de una:
+    // Romper caché para ver el PDF nuevo al instante
     const v='?v='+Date.now();
     const l1=document.getElementById('lnkSiemens'); if(l1) l1.href='./Listaprecios2025.pdf'+v;
     const l2=document.getElementById('lnkMotores'); if(l2) l2.href='./ListaPreciosMotores.pdf'+v;
     const l3=document.getElementById('lnkIngetes'); if(l3) l3.href='./Listapreciosingetes.pdf'+v;
 
   } catch (e) {
-    alert('Error subiendo: ' + (e?.message || e));
+    alert('Error: ' + (e?.message || e));
   }
 });
+
     
     const ingenieria = document.getElementById('cotizacionIngenieria');
 
