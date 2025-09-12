@@ -219,7 +219,7 @@
         </div>
         <!-- Contenido -->
         <div id="settingsContent" class="hidden">
-          <p class="muted">Actualiza los documentos de descarga (solo para esta sesión del navegador).</p>
+          <p class="muted">Actualiza los documentos de descarga.</p>
           <div class="stack">
             <label>Lista Siemens (PDF)<br><input id="fileSiemens" type="file" accept="application/pdf" class="input"></label>
             <label>Lista Motores (PDF)<br><input id="fileMotores" type="file" accept="application/pdf" class="input"></label>
@@ -298,19 +298,64 @@
       contentView.classList.add('hidden'); btnSave.classList.add('hidden'); btnLogout.classList.add('hidden'); loginView.classList.remove('hidden');
     });
 
-    function setLinkFromFile(inputId, linkId){
-      const input=document.getElementById(inputId);
-      const link=document.getElementById(linkId);
-      const f=input?.files?.[0]; if(!f || !link) return false;
-      const url=URL.createObjectURL(f);
-      link.href=url; link.target='_blank'; return true;
-    }
-    btnSave?.addEventListener('click', ()=>{
-      const ok1=setLinkFromFile('fileSiemens','lnkSiemens');
-      const ok2=setLinkFromFile('fileMotores','lnkMotores');
-      const ok3=setLinkFromFile('fileIngetes','lnkIngetes');
-      alert((ok1||ok2||ok3)?'Enlaces actualizados para esta sesión.':'No se seleccionaron archivos.');
-    });
+  // === NUEVO: helpers para subir a tu backend que commitea a GitHub ===
+const ENDPOINT = 'https://TU-ENDPOINT/api/upload'; // <-- cámbialo
+
+async function fileToBase64(file) {
+  const buf = await file.arrayBuffer();
+  let binary = '';
+  const bytes = new Uint8Array(buf);
+  for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+  return btoa(binary); // base64 sin encabezado data:
+}
+
+async function subirPDF(inputId, rutaEnRepo, etiqueta) {
+  const f = document.getElementById(inputId)?.files?.[0];
+  if (!f) return false; // no se seleccionó
+
+  // 1) convertir a base64
+  const base64 = await fileToBase64(f);
+
+  // 2) mandar al backend
+  const resp = await fetch(ENDPOINT, {
+    method: 'POST',
+    headers: { 'Content-Type':'application/json' },
+    body: JSON.stringify({
+      adminKey: document.getElementById('admPass').value, // misma clave del modal
+      fileBase64: base64,                                  // sin "data:application/pdf;base64,"
+      path: rutaEnRepo,                                    // nombre exacto en el repo
+      message: `Actualiza ${etiqueta} desde el portal`
+    })
+  });
+
+  const j = await resp.json().catch(()=>({ok:false,msg:'Respuesta inválida'}));
+  if (!resp.ok || !j.ok) throw new Error(j.msg || 'Error subiendo a GitHub');
+  return true;
+}
+
+// 3) Hook del botón Guardar para subir a GitHub y refrescar enlaces con cache-busting
+btnSave?.addEventListener('click', async ()=>{
+  try {
+    const r = await Promise.allSettled([
+      subirPDF('fileSiemens','Listaprecios2025.pdf','Lista Siemens'),
+      subirPDF('fileMotores','ListaPreciosMotores.pdf','Lista Motores'),
+      subirPDF('fileIngetes','ListaPreciosIngetes.pdf','Lista Ingetes'),
+    ]);
+
+    const algunoOk = r.some(x => x.status === 'fulfilled' && x.value === true);
+    if (!algunoOk) { alert('No se seleccionaron archivos.'); return; }
+
+    // cache-busting de los enlaces para que se vea de una sin pelear con el CDN
+    const v='?v='+Date.now();
+    const l1=document.getElementById('lnkSiemens'); if(l1) l1.href='./Listaprecios2025.pdf'+v;
+    const l2=document.getElementById('lnkMotores'); if(l2) l2.href='./ListaPreciosMotores.pdf'+v;
+    const l3=document.getElementById('lnkIngetes'); if(l3) l3.href='./ListaPreciosIngetes.pdf'+v;
+
+    alert('PDFs actualizados en GitHub correctamente.');
+  } catch (e) {
+    alert('Error: ' + (e?.message || e));
+  }
+});
 
     const ingenieria = document.getElementById('cotizacionIngenieria');
 
